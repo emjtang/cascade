@@ -17,6 +17,8 @@ package com.paypal.cascade.json
 
 import scala.util.Try
 
+import java.util.concurrent.atomic.AtomicReference
+
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper, SerializationFeature}
 import com.fasterxml.jackson.datatype.joda.JodaModule
@@ -38,7 +40,9 @@ import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
  */
 object JsonUtil {
 
-  val mapper = new ObjectMapper() with ScalaObjectMapper
+  private val mapper = new ObjectMapper() with ScalaObjectMapper
+  private val modifyObject = new Object()
+  private val mapperReference = new AtomicReference[ObjectMapper](mapper) // for atomic
 
   mapper.registerModule(DefaultScalaModule)
   mapper.registerModule(new JodaModule)
@@ -108,4 +112,56 @@ object JsonUtil {
     mapper.convertValue[T](obj)
   }
 
-}
+  // want to discourage toggling of settings
+  /**
+   *
+   * @param feature
+   * @param state
+   * @return
+   */
+  def configureDeserializationFeature(feature: DeserializationFeature, state: Boolean): Unit = {
+
+    // possible text matching if we want to allow only the configuration of some deserialization features?
+    // and if want to discourage toggling of settings, perhaps a boolean or int array that keeps track of
+    // whether a feature has been configured before, or how many times it has been configured (have some upper limit)
+//    val cpy = mapperReference.get().copy()
+
+
+//    mapperReference.set {
+//      val cpy = mapperReference.get().copy()
+//      cpy.configure(feature,state)
+//      cpy
+//    }
+    mapper.synchronized {
+      mapper.configure(feature,state)
+    }
+    // create a new object mapper + set it to be the new value of the reference
+    // or change the value of the reference?
+    // objectMapper to Unit
+
+  }
+
+  def modifyMapper(f: ObjectMapper => Unit): Unit = {
+    modifyObject.synchronized {
+      f(mapper)
+    }
+  }
+
+//  modifyMapper(_.isEnabled(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS))
+//  modifyMapper(_.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, true))
+
+  /**
+   *
+   * @param feature
+   * @param state
+   */
+  def configureSerializationFeature(feature: SerializationFeature, state: Boolean): Unit = {
+    mapperReference.get().configure(feature, state)
+  }
+
+  // Other possible things to configure?
+// public ObjectMapper configure(JsonParser.Feature f, boolean state)
+// public ObjectMapper configure(JsonGenerator.Feature f, boolean state)
+
+
+  }
