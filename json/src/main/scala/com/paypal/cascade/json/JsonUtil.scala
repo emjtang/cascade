@@ -38,7 +38,7 @@ import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
  */
 object JsonUtil {
 
-  private val mapper = new ObjectMapper() with ScalaObjectMapper
+  val mapper = new ObjectMapper() with ScalaObjectMapper
 
   mapper.registerModule(DefaultScalaModule)
   mapper.registerModule(new JodaModule)
